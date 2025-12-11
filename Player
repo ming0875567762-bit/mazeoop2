@@ -1,0 +1,100 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Player : Character
+{
+    [Header("Inventory & Keys")]
+    public int keyCount = 0; // ✅ เพิ่มตัวแปรนับกุญแจ (สำหรับเปิดประตู)
+    public List<Item> inventory = new List<Item>();
+
+    [Header("Hand setting")]
+    public Transform RightHand;
+    public Transform LeftHand;
+
+    Vector3 _inputDirection;
+    bool _isAttacking = false;
+
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    void Start()
+    {
+        rb = GetComponent<Rigidbody>();
+
+        // ✅ แก้ไข: ใช้ GetComponentInChildren เพื่อหา Animator ในลูก (เผื่อตัวแม่ไม่มี)
+        // และใช้ TryGetComponent เพื่อความปลอดภัย ไม่ให้ Error ถ้าไม่มี
+        if (!TryGetComponent<Animator>(out animator))
+        {
+            animator = GetComponentInChildren<Animator>();
+        }
+
+        health = maxHealth;
+    }
+
+    public void FixedUpdate()
+    {
+        // ⚠️ หมายเหตุ: ถ้าใช้ FirstPersonController ของ Unity อยู่แล้ว 
+        // ฟังก์ชัน Move/Turn ด้านล่างอาจจะตีกัน ทำให้เดินกระตุก
+        // ถ้าเดินแปลกๆ ให้ลองใส่เครื่องหมาย // หน้า Move และ Turn บรรทัดข้างล่างนี้ครับ
+        Move(_inputDirection);
+        Turn(_inputDirection);
+
+        Attack(_isAttacking);
+    }
+
+    public void Update()
+    {
+        HandleInput();
+    }
+
+    public void AddItem(Item item)
+    {
+        inventory.Add(item);
+
+        // ✅ เพิ่ม Logic: นับจำนวนกุญแจ
+        // (สมมติว่า item ทุกชิ้นที่เก็บได้คือกุญแจ หรือคุณจะเช็คชื่อ item.Name ก็ได้)
+        keyCount++;
+        Debug.Log("เก็บของได้! ตอนนี้มีกุญแจทั้งหมด: " + keyCount + " ดอก");
+    }
+
+    private void HandleInput()
+    {
+        float x = Input.GetAxis("Horizontal");
+        float y = Input.GetAxis("Vertical");
+
+        // สร้างทิศทางจาก input
+        Vector3 input = new Vector3(x, 0, y);
+
+        // แปลงทิศทางให้สัมพันธ์กับการหมุนของ playerBody (กล้อง)
+        _inputDirection = transform.TransformDirection(input);
+        _inputDirection.y = 0; // กันไม่ให้เคลื่อนที่ในแกน Y
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            _isAttacking = true;
+        }
+    }
+
+    public void Attack(bool isAttacking)
+    {
+        if (isAttacking)
+        {
+            // ✅ แก้ไข: เช็คก่อนว่ามี Animator ไหม (กันเกมค้างถ้าไม่มี)
+            if (animator != null)
+            {
+                animator.SetTrigger("Attack");
+            }
+
+            // การโจมตี (เช็คว่า InFront มีค่าหรือไม่)
+            if (InFront != null)
+            {
+                Enemy e = InFront as Enemy;
+                if (e != null)
+                {
+                    e.TakeDamage(Damage);
+                    Debug.Log($"{gameObject.name} attacks for {Damage} damage.");
+                }
+            }
+
+            _isAttacking = false;
+        }
+    }
+}
