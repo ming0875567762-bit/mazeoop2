@@ -1,0 +1,25 @@
+using UnityEngine;
+
+public class GameManager : MonoBehaviour
+{
+    public static GameManager instance; // Singleton ãËéàÃÕÂ¡ãªé§èÒÂæ
+
+    [Header("Settings")]
+    public int keysRequired = 5;      // µéÍ§à¡çº¡Õè´Í¡¶Ö§¼èÒ¹
+
+    [Header("Debug Info")]
+    public int currentKeys = 0;       // (´ÙÍÂèÒ§à´ÕÂÇ) ¨Ó¹Ç¹·Õèà¡çºä´é
+
+    private void Awake()
+    {
+        // µÑé§¤èÒãËéµÑÇ¹Õéà»ç¹µÑÇËÅÑ¡
+        if (instance == null) instance = this;
+        else Destroy(gameObject);
+    }
+
+    public void AddKey()
+    {
+        currentKeys++;
+        Debug.Log($"à¡çº¡Ø­á¨ä´é {currentKeys} / {keysRequired} ´Í¡");
+    }
+}
