@@ -1,0 +1,60 @@
+using UnityEngine;
+using System.Collections; // ¨Óà»ç¹ÊÓËÃÑº Coroutine
+
+public class ItemSpawner : MonoBehaviour
+{
+    [Header("Settings")]
+    public GameObject itemPrefab;
+    public int numberOfItems = 5;
+
+    [Header("Maze Settings")]
+    public Vector2 mapSize = new Vector2(20, 20); // ¢¹Ò´¡ÇéÒ§ÂÒÇ¢Í§à¢ÒÇ§¡µ (µéÍ§ãÊèãËéµÃ§¡Ñº¢¹Ò´¨ÃÔ§)
+    public LayerMask wallLayer; // àÍÒäÇéãÊè Layer ¡Óá¾§
+    public float spawnHeight = 1.0f; // ¤ÇÒÁÊÙ§·Õè¨ÐãËé¢Í§ÅÍÂ (à¾×èÍäÁèãËé¨Á¾×é¹)
+
+    void Start()
+    {
+        // ÃÍ 1 ÇÔ¹Ò·Õà¾×èÍãËé Map ÊÃéÒ§àÊÃç¨¡èÍ¹ ¤èÍÂÇÒ§¢Í§ (á¡é»Ñ­ËÒ¢Í§äÁè¢Öé¹)
+        StartCoroutine(WaitAndSpawn());
+    }
+
+    IEnumerator WaitAndSpawn()
+    {
+        yield return new WaitForSeconds(1.0f); // ÃÍ 1 ÇÔ¹Ò·Õ
+        SpawnItems();
+    }
+
+    void SpawnItems()
+    {
+        int spawnedCount = 0;
+        int attempts = 0;
+
+        // Ç¹ÅÙ»¨¹¡ÇèÒ¨ÐÇÒ§¤Ãº ËÃ×Í ÅÍ§à¡Ô¹ 100 ÃÍºáÅéÇäÁèà¨Í·ÕèÅ§
+        while (spawnedCount < numberOfItems && attempts < 100)
+        {
+            attempts++;
+
+            // 1. ÊØèÁµÓáË¹è§ X, Z ã¹¢Íºà¢µ¢Í§ Map
+            // (ÊÁÁµÔÇèÒ Map ÊÃéÒ§àÃÔèÁ·Õè¨Ø´ 0,0 ¶éÒ Map ¤Ø³àÃÔèÁ·ÕèÍ×è¹µéÍ§»ÃÑºµÃ§¹Õé)
+            float randomX = Random.Range(1, mapSize.x - 1);
+            float randomZ = Random.Range(1, mapSize.y - 1);
+
+            // »Ñ´àÈÉãËéÅ§ÅçÍ¤¡Öè§¡ÅÒ§ªèÍ§ (àªè¹ 1.5, 2.5) à¾×èÍ¤ÇÒÁÊÇÂ§ÒÁ
+            Vector3 spawnPos = new Vector3(Mathf.Floor(randomX) + 0.5f, spawnHeight, Mathf.Floor(randomZ) + 0.5f);
+
+            // 2. àªç¤ÇèÒµÃ§¹Õéª¹¡Óá¾§äËÁ (ãªé Physics CheckSphere)
+            // ÃÑÈÁÕ 0.4f ¤×Íàªç¤Ç§¡ÅÁàÅç¡æ ÃÍº¨Ø´¹Ñé¹
+            if (!Physics.CheckSphere(spawnPos, 0.4f, wallLayer))
+            {
+                // ¶éÒäÁèª¹¡Óá¾§ (·Ò§ÊÐ´Ç¡) -> ÇÒ§¢Í§àÅÂ!
+                Instantiate(itemPrefab, spawnPos, Quaternion.identity);
+                spawnedCount++;
+            }
+        }
+
+        if (spawnedCount < numberOfItems)
+        {
+            Debug.LogWarning("ÇÒ§¢Í§ä´éäÁè¤Ãº! ÅÍ§à¾ÔèÁ¢¹Ò´ Map ËÃ×ÍÅ´¨Ó¹Ç¹¢Í§");
+        }
+    }
+}
