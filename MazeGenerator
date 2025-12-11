@@ -1,0 +1,131 @@
+using UnityEngine;
+using System.Collections.Generic;
+using Unity.AI.Navigation;
+
+public class MazeGenerator : MonoBehaviour
+{
+    [Header("Maze Settings")]
+    public int width = 19;
+    public int height = 19;
+    public float cellSize = 3f;
+    public GameObject wallPrefab;
+
+    [Header("Floor Settings")]
+    public Transform floor; // ⚠️ ลากพื้น (Plane) มาใส่ช่องนี้
+
+    [Header("AI & Spawning")]
+    public NavMeshSurface navMeshSurface;
+    public EnemySpawner enemySpawner;
+
+    private bool[,] visited;
+    private System.Random rand = new System.Random();
+
+    void Start()
+    {
+        GenerateMaze();
+    }
+
+    void GenerateMaze()
+    {
+        // 1. ปรับขนาดพื้นให้พอดีกับเขาวงกตก่อนสร้างกำแพง
+        if (floor != null)
+        {
+            // คำนวณขนาด (Plane 1 หน่วยมีขนาดจริง 10 เมตร เลยต้องหาร 10)
+            float floorWidth = (width * cellSize) / 10f;
+            float floorHeight = (height * cellSize) / 10f;
+
+            // ขยายพื้น
+            floor.localScale = new Vector3(floorWidth, 1, floorHeight);
+
+            // ขยับพื้นไปไว้ตรงกลางเขาวงกต (คำนวณจุดกึ่งกลาง)
+            float centerX = (width * cellSize) / 2f - (cellSize / 2f);
+            float centerZ = (height * cellSize) / 2f - (cellSize / 2f);
+            floor.position = new Vector3(centerX, 0, centerZ);
+        }
+
+        // 2. เริ่มสร้างกำแพง (Logic เดิม)
+        visited = new bool[width, height];
+        Stack<Vector2Int> stack = new Stack<Vector2Int>();
+        Vector2Int start = new Vector2Int(0, 0);
+        stack.Push(start);
+        visited[start.x, start.y] = true;
+
+        while (stack.Count > 0)
+        {
+            Vector2Int current = stack.Peek();
+            List<Vector2Int> neighbors = GetUnvisitedNeighbors(current);
+
+            if (neighbors.Count > 0)
+            {
+                Vector2Int chosen = neighbors[rand.Next(neighbors.Count)];
+                RemoveWall(current, chosen);
+                visited[chosen.x, chosen.y] = true;
+                stack.Push(chosen);
+            }
+            else
+            {
+                stack.Pop();
+            }
+        }
+
+        // 3. Bake NavMesh (สร้างเส้นทางเดินสีฟ้า)
+        if (navMeshSurface != null)
+        {
+            navMeshSurface.BuildNavMesh();
+            Debug.Log("✅ พื้นพร้อม! NavMesh พร้อม!");
+        }
+
+        // 4. เสกศัตรู
+        if (enemySpawner != null)
+        {
+            enemySpawner.SpawnEnemies();
+        }
+    }
+
+    List<Vector2Int> GetUnvisitedNeighbors(Vector2Int cell)
+    {
+        List<Vector2Int> neighbors = new List<Vector2Int>();
+        Vector2Int[] directions = {
+            new Vector2Int(1,0), new Vector2Int(-1,0),
+            new Vector2Int(0,1), new Vector2Int(0,-1)
+        };
+
+        foreach (var dir in directions)
+        {
+            Vector2Int next = cell + dir;
+            if (next.x >= 0 && next.x < width && next.y >= 0 && next.y < height)
+            {
+                if (!visited[next.x, next.y])
+                    neighbors.Add(next);
+            }
+        }
+        return neighbors;
+    }
+
+    void RemoveWall(Vector2Int a, Vector2Int b)
+    {
+        int dx = b.x - a.x;
+        int dy = b.y - a.y;
+
+        if (dx == 1)
+        {
+            Vector3 pos = new Vector3(a.x * cellSize + cellSize * 0.5f, wallPrefab.GetComponent<Renderer>().bounds.size.y * 0.5f, a.y * cellSize);
+            Instantiate(wallPrefab, pos, Quaternion.Euler(0, 90, 0), transform);
+        }
+        else if (dx == -1)
+        {
+            Vector3 pos = new Vector3(a.x * cellSize - cellSize * 0.5f, wallPrefab.GetComponent<Renderer>().bounds.size.y * 0.5f, a.y * cellSize);
+            Instantiate(wallPrefab, pos, Quaternion.Euler(0, 90, 0), transform);
+        }
+        else if (dy == 1)
+        {
+            Vector3 pos = new Vector3(a.x * cellSize, wallPrefab.GetComponent<Renderer>().bounds.size.y * 0.5f, a.y * cellSize + cellSize * 0.5f);
+            Instantiate(wallPrefab, pos, Quaternion.identity, transform);
+        }
+        else if (dy == -1)
+        {
+            Vector3 pos = new Vector3(a.x * cellSize, wallPrefab.GetComponent<Renderer>().bounds.size.y * 0.5f, a.y * cellSize - cellSize * 0.5f);
+            Instantiate(wallPrefab, pos, Quaternion.identity, transform);
+        }
+    }
+}
