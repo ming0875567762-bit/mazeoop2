@@ -1,0 +1,44 @@
+using UnityEngine;
+
+public class EnemyRaycastAI : MonoBehaviour
+{
+    public Transform player;
+    public float speed = 3f;
+    public float rotateSpeed = 5f;
+    public float rayDistance = 2f;      // ระยะตรวจสอบกำแพง
+
+    void Update()
+    {
+        // ทิศทางจากศัตรู → ผู้เล่น
+        Vector3 dirToPlayer = (player.position - transform.position).normalized;
+
+        // ยิง Ray ตรงหน้า enemy
+        bool hitWall = Physics.Raycast(transform.position, transform.forward, out RaycastHit hit, rayDistance);
+
+        if (hitWall)
+        {
+            // ถ้าชนกำแพง → หมุนหลบ
+            transform.Rotate(0, 90f * Time.deltaTime, 0);
+        }
+        else
+        {
+            // ถ้าไม่ชน → เดินไปหา player
+            transform.position = Vector3.MoveTowards(
+                transform.position,
+                transform.position + transform.forward,
+                speed * Time.deltaTime
+            );
+
+            // หมุนไปหา player แบบลื่น ๆ
+            Quaternion lookRot = Quaternion.LookRotation(dirToPlayer);
+            transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, rotateSpeed * Time.deltaTime);
+        }
+    }
+
+    void OnDrawGizmos()
+    {
+        // แสดง Ray ใน Scene View เพื่อ debug
+        Gizmos.color = Color.red;
+        Gizmos.DrawRay(transform.position, transform.forward * rayDistance);
+    }
+}
