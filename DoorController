@@ -1,0 +1,89 @@
+using UnityEngine;
+
+public class DoorController : MonoBehaviour
+{
+    [Header("Settings")]
+    public int requiredKeys = 5;       // จำนวนกุญแจที่ต้องใช้
+    public float openAngle = 90f;      // องศาที่จะหมุนเปิด
+    public float openSpeed = 2f;       // ความเร็วในการเปิด
+
+    private bool isOpen = false;       // สถานะประตู
+    private bool isPlayerNearby = false; // ผู้เล่นอยู่ใกล้ประตูหรือไม่
+
+    // ตัวแปรเก็บ Script ของคนเล่น (จะใช้ FindObjectOfType หาเอา)
+    private PlayerInventory playerRef;
+
+    void Update()
+    {
+        // 1. ถ้าผู้เล่นอยู่ใกล้ + ประตูยังไม่เปิด + กดปุ่ม E
+        if (isPlayerNearby && !isOpen && Input.GetKeyDown(KeyCode.E))
+        {
+            CheckKeysAndOpen();
+        }
+
+        // 2. ถ้าสถานะคือเปิด (isOpen = true) ให้สั่งหมุนประตู
+        if (isOpen)
+        {
+            Quaternion targetRotation = Quaternion.Euler(0, openAngle, 0);
+            transform.localRotation = Quaternion.Slerp(transform.localRotation, targetRotation, Time.deltaTime * openSpeed);
+        }
+    }
+
+    void CheckKeysAndOpen()
+    {
+        // กันเหนียว: ถ้าตอนชนหาไม่เจอ ลองหาใหม่อีกทีตอนกดปุ่ม
+        if (playerRef == null)
+        {
+            playerRef = FindObjectOfType<PlayerInventory>();
+        }
+
+        if (playerRef != null)
+        {
+            // เช็คจำนวนกุญแจจากตัวแปร keyCount
+            if (playerRef.keyCount >= requiredKeys)
+            {
+                WinGame();
+            }
+            else
+            {
+                int missing = requiredKeys - playerRef.keyCount;
+                Debug.Log($"🔒 ยังเปิดไม่ได้! ขาดกุญแจอีก {missing} ดอก (มีอยู่ {playerRef.keyCount})");
+            }
+        }
+        else
+        {
+            Debug.LogError("❌ Error: หา Script 'PlayerInventory' ไม่เจอเลยในฉากนี้!");
+        }
+    }
+
+    void WinGame()
+    {
+        isOpen = true;
+        Debug.Log("🎉 กุญแจครบแล้ว! เปิดประตูสู่ชัยชนะ! 🎉");
+    }
+
+    void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Player"))
+        {
+            isPlayerNearby = true;
+
+            // ----------------- 🔥 จุดแก้เด็ดขาด 🔥 -----------------
+            // ใช้ FindObjectOfType เพื่อค้นหา Script นี้ทั้งเกม 
+            // ไม่ว่ามันจะซ่อนอยู่ตรงไหนของตัวละคร ก็จะหาเจอตัวที่มีกุญแจแน่นอน
+            playerRef = FindObjectOfType<PlayerInventory>();
+            // ----------------------------------------------------
+
+            Debug.Log("Press [E] to Open Door");
+        }
+    }
+
+    void OnTriggerExit(Collider other)
+    {
+        if (other.CompareTag("Player"))
+        {
+            isPlayerNearby = false;
+            // ไม่ต้องล้าง playerRef ก็ได้ เผื่อเดินกลับมาใหม่จะได้ไม่ต้องหาใหม่
+        }
+    }
+}
