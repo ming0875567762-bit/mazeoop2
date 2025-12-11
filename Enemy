@@ -1,0 +1,106 @@
+using UnityEngine;
+using UnityEngine.AI;
+
+[RequireComponent(typeof(NavMeshAgent))]
+public class Enemy : Character
+{
+    [Header("AI Settings")]
+    public Transform target;          // เป้าหมาย (Player)
+    public float attackRange = 2.0f;  // ระยะที่จะหยุดเดินแล้วเริ่มตี
+    public float attackCooldown = 1.5f; // ตีเร็วแค่ไหน (วินาที)
+
+    // ตัด Patrol Settings ทิ้งไปเลยครับ ไม่ใช้แล้ว
+
+    private NavMeshAgent agent;
+    private float lastAttackTime;
+
+    public override void SetUP()
+    {
+        base.SetUP();
+        agent = GetComponent<NavMeshAgent>();
+
+        // บังคับปิด Root Motion (กันลืม)
+        if (animator != null) animator.applyRootMotion = false;
+
+        // ตั้งความเร็ว
+        agent.speed = movementSpeed > 0 ? movementSpeed : 3.5f;
+
+        // หา Player อัตโนมัติทันทีที่เกิด
+        if (target == null)
+        {
+            GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+            if (playerObj != null) target = playerObj.transform;
+        }
+    }
+
+    void Update()
+    {
+        // Safety Check
+        if (target == null || agent == null || !agent.isOnNavMesh) return;
+
+        float distanceToPlayer = Vector3.Distance(transform.position, target.position);
+
+        // --- Logic ใหม่: ไล่ล่าตลอดเวลา ---
+
+        // ถ้าระยะถึงตัว -> ตี
+        if (distanceToPlayer <= attackRange)
+        {
+            AttackBehavior();
+        }
+        // ถ้ายังไม่ถึง -> วิ่งไล่ (ไม่สนระยะมองเห็น ไล่สุดขอบแมพ)
+        else
+        {
+            ChaseBehavior();
+        }
+    }
+
+    void ChaseBehavior()
+    {
+        if (!agent.isOnNavMesh) return;
+
+        agent.isStopped = false;
+        agent.SetDestination(target.position); // สั่งเดินไปหา Player เดี๋ยวนี้!
+
+        // เล่นท่าเดิน
+        if (animator != null)
+        {
+            animator.SetFloat("Speed", agent.velocity.magnitude, 0.1f, Time.deltaTime);
+        }
+    }
+
+    void AttackBehavior()
+    {
+        if (!agent.isOnNavMesh) return;
+
+        agent.isStopped = true;
+
+        // หันหน้าหา Player
+        Vector3 lookPos = target.position;
+        lookPos.y = transform.position.y;
+        transform.LookAt(lookPos);
+
+        if (Time.time >= lastAttackTime + attackCooldown)
+        {
+            PerformAttack();
+        }
+
+        // หยุดเดิน (ท่า Speed = 0)
+        if (animator != null)
+        {
+            animator.SetFloat("Speed", 0f, 0.1f, Time.deltaTime);
+        }
+    }
+
+    void PerformAttack()
+    {
+        lastAttackTime = Time.time;
+        if (animator != null) animator.SetTrigger("Attack");
+
+        Character playerCharacter = target.GetComponentInParent<Character>();
+        if (playerCharacter != null)
+        {
+            playerCharacter.TakeDamage(Damage);
+            Debug.Log("⚔️ เข้าเป้า! ศัตรูโจมตีผู้เล่น");
+        }
+    }
+}
